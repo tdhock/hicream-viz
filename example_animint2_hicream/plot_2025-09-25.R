@@ -88,7 +88,8 @@ viz <- animint(
   out.dir="plot_hicream",
   first=list(
     tile_id="31 1",
-    nb_clust=614)
+    nb_clust=614),
+  source="https://github.com/tdhock/hicream-viz/blob/main/example_animint2_hicream/plot_2025-09-25.R"
 )
 if(FALSE){
   animint2pages(viz, "2025-09-25-hicream")
