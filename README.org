@@ -1,3 +1,18 @@
+** 26 Sept 2025
+
+[[file:data-2025-09-26/isoband.R]] makes
+
+[[file:data-2025-09-26/isoband.png]]
+
+The figure above shows a small subset of pixels, with different colors for four clusters.
+We see that the cluster polygons are consistent with the pixel tiles.
+For each cluster we see
+
+- number of rows used to represent the polygon border.
+- number of rows used to represent pixel tiles,
+- and number of corners which required to represent tiles as polygons, if rotated 45 degrees.
+- the numbers of rows are similar in the different representations (at least for this example).
+
 ** 25 Sept 2025
 
 [[file:example_animint2_hicream/plot_2025-09-25.R]] adapted from Elise's data/code, makes [[https://tdhock.github.io/2025-09-25-hicream][interactive data viz]].

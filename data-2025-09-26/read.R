@@ -32,23 +32,15 @@ ggplot()+
     color="black",
     data=hicream_zoom)
 
-levs <- sort(unique(hicream_zoom$clust))
-levs <- 814
-levs <- 608
-levs <- 406#big
-levs <- 530#one pixel
-hicream_zoom_wide <- dcast(hicream_zoom, region1 ~ region2, value.var="clust", fill=0)
-clust_id_mat <- cbind(0, rbind(
-  0, as.matrix(hicream_zoom_wide[,-1]), 0), 0)
-reg_int <- hicream_zoom_wide[, c(min(region1)-1, region1, max(region1)+1)]
-band_list <- isoband::isobands(reg_int, reg_int, clust_id_mat, levs-0.5, levs+0.5)
-line_list <- isoband::isolines(reg_int, reg_int, clust_id_mat, levs)
-names(band_list)
-band_dt <- data.table(clust=levs)[, {
-  as.data.table(band_list[[.I]])
-}, by=clust]
-line_dt <- data.table(clust=levs)[, {
-  as.data.table(line_list[[.I]])
+band_dt <- hicream_zoom[, {
+  wide <- dcast(.SD, region1 ~ region2, length, fill=0)
+  m <- as.matrix(wide[,-1])
+  clust_id_mat <- cbind(0, rbind(0, m, 0), 0)
+  exp_one <- function(x)c(min(x)-1, x, max(x)+1)
+  band_list <- isoband::isobands(
+    exp_one(as.integer(colnames(m))),
+    exp_one(wide$region), clust_id_mat, 0.5, 1.5)
+  as.data.table(band_list[[1]][c("x","y")])
 }, by=clust]
 ggplot()+
   facet_grid(. ~ geom)+
@@ -57,16 +49,10 @@ ggplot()+
     color="black",
     data=hicream_zoom)+
   geom_polygon(aes(
-    y, x, group=id, fill=factor(clust)),
+    y, x, group=clust, fill=factor(clust)),
     color="black",
     size=2,
-    data=data.table(band_dt, geom="polygon"))+
-  geom_path(aes(
-    y, x, group=id),
-    color="black",
-    size=2,
-    data=data.table(line_dt, geom="line"))+
-  coord_equal()
+    data=data.table(band_dt, geom="polygon"))
 
 
 all_dt <- fread("all_chr19_50000.tsv")
