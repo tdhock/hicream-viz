@@ -40,10 +40,14 @@ band_dt <- hicream_zoom[, {
     exp_one(as.integer(colnames(m))),
     exp_one(wide$region), clust_id_mat, 0.5, 1.5)
   xy <- c('x','y')
-  circ_diff <- function(z)diff(c(z,z[1]))
-  as.data.table(band_list[[1]][xy])[
-  , paste0("d",xy) := lapply(.SD, circ_diff), .SDcols=xy][
-  , paste0("dd",xy) := lapply(.SD, circ_diff), .SDcols=paste0("d",xy)][
+  circ_diff_vec <- function(z)diff(c(z,z[1]))
+  circ_diff_dt <- function(DT, XY)DT[
+  , paste0("d",XY) := lapply(.SD, circ_diff_vec), .SDcols=XY]
+  out <- as.data.table(band_list[[1]][xy])
+  for(XY in list(xy, paste0("d",xy))){
+    circ_diff_dt(out, XY)
+  }
+  out[
   , both_zero := ddx==0 & ddy==0][
   , keep := !c(both_zero[.N], both_zero[-.N])]
 }, by=Cluster][]
