@@ -39,11 +39,19 @@ band_dt <- hicream_zoom[, {
   band_list <- isoband::isobands(
     exp_one(as.integer(colnames(m))),
     exp_one(wide$region), clust_id_mat, 0.5, 1.5)
-  as.data.table(band_list[[1]][c("x","y")])
-}, by=Cluster]
-mean_dt <- dcast(hicream_zoom, Cluster ~ ., mean, value.var=c("region1","region2"))
+  xy <- c('x','y')
+  circ_diff <- function(z)diff(c(z,z[1]))
+  as.data.table(band_list[[1]][xy])[
+  , paste0("d",xy) := lapply(.SD, circ_diff), .SDcols=xy][
+  , paste0("dd",xy) := lapply(.SD, circ_diff), .SDcols=paste0("d",xy)][
+  , both_zero := ddx==0 & ddy==0][
+  , keep := !c(both_zero[.N], both_zero[-.N])]
+}, by=Cluster][]
+band_simple <- band_dt[keep==TRUE]
+lpos_dt <- dcast(hicream_zoom, Cluster ~ ., min, value.var=c("region1","region2"))
 data_type_list <- list(
   cluster=band_dt,
+  simplified=band_simple,
   pixel=hicream_zoom)
 data_geom_list <- list()
 data_size_list <- list()
@@ -60,32 +68,48 @@ label_dt <- data_size[, .(
     paste("cluster", Cluster),
     paste(data_type, "rows=", rows)
   ), collapse="\n"), "corners=", rows[data_type=="pixel"]*4)
-), by=Cluster][mean_dt, on="Cluster"]
+), by=Cluster][lpos_dt, on="Cluster"]
+poly_dt <- with(data_geom_list, rbind(simplified, cluster))
+set.seed(1)
 gg <- ggplot()+
   geom_tile(aes(
-    region1, region2, fill=Cluster, size=data_type),
-    color="black",
+    region1, region2,
+    fill=Cluster,
+    color=data_type,
+    size=data_type),
     alpha=0.5,
     data=data_geom_list$pixel)+
   geom_polygon(aes(
-    y, x, group=Cluster, fill=Cluster, size=data_type),
-    color="black",
+    y, x,
+    group=paste(Cluster, data_type),
+    fill=Cluster,
+    color=data_type,
+    size=data_type),
     alpha=0.5,
-    data=data_geom_list$cluster)+
+    data=poly_dt)+
+  scale_color_manual(values=c(
+    pixel="black",
+    cluster="black",
+    simplified="red"))+
   geom_point(aes(
-    y, x),
-    data=data_geom_list$cluster)+
+    y, x,
+    size=data_type,
+    color=data_type),
+    data=poly_dt[.N:1])+
   coord_equal()+
   geom_label(aes(
     region1, region2, label=label),
     alpha=0.7,
-    size=2.3,
+    hjust=0,
+    size=2.9,
     data=label_dt)+
   guides(fill="none")+
   scale_size_manual(values=c(
-    cluster=1,
+    simplified=1,
+    cluster=2,
     pixel=0.5))+
   theme(legend.position=c(0.8,0.2))
+print(gg)
 png("isoband.png", width=5, height=5, units="in", res=200)
 print(gg)
 dev.off()
