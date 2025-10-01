@@ -1,3 +1,6 @@
+** 1 Oct 2025
+[[file:data-2025-10-01/figure-pixels-volcano-interactive.R]] makes interactive figure with volcano plot linked to pixel heat map: https://tdhock.github.io/2025-10-01-HiC-pixels-volcano/
+
 ** 26 Sept 2025
 
 [[file:data-2025-09-26/isoband.R]] makes

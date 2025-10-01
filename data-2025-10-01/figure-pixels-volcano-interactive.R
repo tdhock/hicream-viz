@@ -44,10 +44,7 @@ ggplot()+
 
 setkey(some_pixels[, r1r2 := paste0(region1,"-",region2)], region1, region2, r1r2)
 (corner_dt <- setkey(some_pixels[, data.table(
-  region1=rep(region1, 4),
-  region2=rep(region2, 4),
-  r1r2=rep(r1r2, 4),
-  sign.neg.log10.p=rep(sign.neg.log10.p, 4),
+  .SD,
   corner1=c(region1-0.5, region1-0.5, region1+0.5, region1+0.5),
   corner2=c(region2-0.5, region2+0.5, region2+0.5, region2-0.5)
 )], region1, region2, r1r2))
