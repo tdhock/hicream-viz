@@ -81,6 +81,8 @@ ggplot()+
     data=some_pixels)
 
 viz <- animint(
+  title="Hi-C pixels linked to volcano plot",
+  source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-01/figure-pixels-volcano-interactive.R",
   ggplot()+
     theme_bw()+
     theme_animint(width=1200, last_in_row=TRUE)+
@@ -108,4 +110,11 @@ viz <- animint(
     geom_point(aes(
       logFC, neg.log10.p),
       showSelected="r1r2",
-      data=some_pixels))
+      data=some_pixels),
+  selector.types=list(
+    r1r2="multiple"),
+  first=list(
+    r1r2=some_pixels[region1==region2, r1r2][1:5]))
+if(FALSE){
+  animint2pages(viz, "2025-10-01-HiC-pixels-volcano", chromote_sleep_seconds=5)
+}
