@@ -1,78 +1,90 @@
 library(animint2)
 library(data.table)
-pixel_dt <- fread("../data-2025-09-26/hicream_chr19_50000.tsv")
-
-some_pixels <- pixel_dt[region2<region1+50][region2<48200][
-, neg.log10.p := -log10(p.value)][
-, sign.neg.log10.p := sign(logFC)*neg.log10.p]
-
+myround <- function(x,value=1)round(x*value)/value
+pixel_dt <- fread("../data-2025-09-26/hicream_chr19_50000.tsv")[, let(
+  Cluster=factor(clust),
+  round_region1=myround(region1,1/100),
+  round_region2=myround(region2,1/100),
+  neg.log10.p = -log10(p.value)
+)][, region_tile := paste0(round_region1,"-",round_region2)][]
+region_tiles <- pixel_dt[, .(
+  pixels=.N,
+  mean.neg.log10.p=mean(neg.log10.p),
+  clusters=length(unique(Cluster))
+), by=.(region_tile,round_region1,round_region2)]
 ggplot()+
-  coord_equal()+
-  scale_y_reverse()+
   geom_tile(aes(
-    region2, region1, fill=p.value),
-    data=some_pixels,
-    color=NA)+
-  scale_fill_gradient(low="white",high="black")
+    round_region1, round_region2, fill=clusters),
+    data=region_tiles)+
+  scale_fill_gradient(low="white", high="black")+
+  coord_equal()
 
-ggplot()+
-  coord_equal()+
-  scale_y_reverse()+
-  geom_tile(aes(
-    region2, region1, fill=neg.log10.p),
-    data=some_pixels,
-    color=NA)+
-  scale_fill_gradient(low="white",high="black")
+cluster_dt <- pixel_dt[, {
+  wide <- dcast(.SD, region1 ~ region2, length, fill=0)
+  m <- as.matrix(wide[,-1])
+  clust_id_mat <- cbind(0, rbind(0, m, 0), 0)
+  exp_one <- function(x)c(min(x)-1, x, max(x)+1)
+  path_list <- contourLines(
+    exp_one(wide$region),
+    exp_one(as.integer(colnames(m))),
+    clust_id_mat, levels=0.5)
+  xy <- c('x','y')
+  circ_diff_vec <- function(z)diff(c(z,z[1]))
+  circ_diff_dt <- function(DT, XY)DT[
+  , paste0("d",XY) := lapply(.SD, circ_diff_vec), .SDcols=XY]
+  out <- data.table(id=seq_along(path_list))[
+  , path_list[[id]][xy]
+  , by=id]
+  for(XY in list(xy, paste0("d",xy))){
+    circ_diff_dt(out, XY)
+  }
+  out[
+  , both_zero := ddx==0 & ddy==0
+  ][!c(both_zero[.N], both_zero[-.N]), .(id, region1=x, region2=y)]
+}, by=Cluster][]
 
-ggplot()+
-  coord_equal()+
-  scale_y_reverse()+
-  geom_tile(aes(
-    region2, region1, fill=sign.neg.log10.p),
-    data=some_pixels,
-    color=NA)+
-  scale_fill_gradient2()
 
-setkey(some_pixels[, r1r2 := paste0(region1,"-",region2)], region1, region2, r1r2)
-half.width <- 0.4
-corners <- function(corner1, corner2)data.table(corner1, corner2)
-(corner_dt <- setkey(some_pixels[, data.table(.SD, rbind(
-  corners(region1-half.width, region2-half.width),
-  corners(region1-half.width, region2+half.width),
-  corners(region1+half.width, region2+half.width),
-  corners(region1+half.width, region2-half.width),
-  corners(region1-half.width, region2-half.width))
-)], region1, region2, r1r2))
-
-ggplot()+
-  coord_equal()+
-  scale_y_reverse()+
   geom_polygon(aes(
-    corner2, corner1, fill=sign.neg.log10.p, group=r1r2),
-    data=corner_dt,
-    color=NA)+
-  scale_fill_gradient2()
+    region1, region2, group=paste(Cluster,id)),
+    fill="black",
+    alpha=0.5,
+    data=cluster_dt)
+
+
 
 r1r2_xy_mat <- rbind(
   c(0.5, -0.5),
   c(0.5, 0.5))
-corner_dt[, c("x","y") := as.data.table(cbind(corner1, corner2) %*% r1r2_xy_mat)]
+corners <- function(corner1, corner2)data.table(corner1, corner2)
+get_xy <- function(r1, r2, half.width){
+  rbind(
+    corners(r1-half.width, r2-half.width),
+    corners(r1-half.width, r2+half.width),
+    corners(r1+half.width, r2+half.width),
+    corners(r1+half.width, r2-half.width),
+    corners(r1-half.width, r2-half.width)
+  )[, c("x","y") := as.data.table(cbind(corner1, corner2) %*% r1r2_xy_mat)]
+}
+pixel_xy <- pixel_dt[, data.table(.SD, get_xy(region1, region2, 0.4))]
+region_tiles_xy <- region_tiles[
+, data.table(.SD, get_xy(round_region1, round_region2, 40))]
 
 ggplot()+
   coord_equal()+
   geom_polygon(aes(
-    x, y, fill=sign.neg.log10.p, group=r1r2),
-    data=corner_dt,
-    color=NA)+
-  scale_fill_gradient2()
+    x, y, fill=clusters, group=region_tile),
+    data=region_tiles_xy,
+    color="black")+
+  scale_fill_gradient(low="white",high="black")+
+  theme_bw()
 
+## TODO.
 
 ggplot()+
   geom_point(aes(
     logFC, neg.log10.p),
     data=some_pixels)
 
-myround <- function(x,value=1)round(x*value)/value
 FC.rounder <- 4
 some_pixels[, let(
   round_logFC = myround(logFC,FC.rounder),
@@ -90,8 +102,8 @@ range(some_pixel_heat$pixels)
 
 selected.color <- "green"
 viz <- animint(
-  title="Hi-C pixel heat map with borders linked to zoomable volcano plot",
-  source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-02/figure-pixels-volcano-interactive-heat-borders.R",
+  title="Zoomable Hi-C pixel heat map with borders linked to zoomable volcano plot",
+  source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-02/figure-pixels-volcano-interactive-clusters-zoom.R",
   pixels=ggplot()+
     ggtitle("Genomic interaction plot, select pixels")+
     theme_bw()+
@@ -177,6 +189,6 @@ viz <- animint(
   first=list(
     r1r2=some_pixels[region1==region2, r1r2][1:5]))
 if(FALSE){
-  animint2pages(viz, "2025-10-02-HiC-pixels-heat-borders", chromote_sleep_seconds=5)
+  animint2pages(viz, "2025-10-02-HiC-pixels-heat-clusters-zoom", chromote_sleep_seconds=5)
 }
 viz
