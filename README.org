@@ -8,6 +8,10 @@ See [[https://tdhock.github.io/gallery-hic/][index of interactive figures in HiC
 
 [[file:data-2025-10-01/figure-pixels-volcano-interactive-clusters.R]] makes interactive figure with volcano plot linked to pixel heat map, select clusters: https://tdhock.github.io/2025-10-01-HiC-pixels-volcano-clusters
 
+[[file:figure-missing-data.R]] makes
+
+[[file:figure-missing-data.png]]
+
 ** 26 Sept 2025
 
 [[file:data-2025-09-26/isoband.R]] makes
