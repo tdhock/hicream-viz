@@ -8,20 +8,23 @@ get_polygons <- function(DT)DT[, {
   m <- as.matrix(wide[,-1])
   clust_id_mat <- cbind(0, rbind(0, m, 0), 0)
   exp_one <- function(x)c(min(x)-1, x, max(x)+1)
-  band_list <- isoband::isobands(
+  path_list <- contourLines(
+    exp_one(wide$region),
     exp_one(as.integer(colnames(m))),
-    exp_one(wide$region), clust_id_mat, 0.5, 1.5)
+    clust_id_mat, levels=0.5)
   xy <- c('x','y')
   circ_diff_vec <- function(z)diff(c(z,z[1]))
   circ_diff_dt <- function(DT, XY)DT[
   , paste0("d",XY) := lapply(.SD, circ_diff_vec), .SDcols=XY]
-  out <- as.data.table(band_list[[1]][c(xy,"id")])
+  out <- data.table(id=seq_along(path_list))[
+  , path_list[[id]][xy]
+  , by=id]
   for(XY in list(xy, paste0("d",xy))){
     circ_diff_dt(out, XY)
   }
   out[
   , both_zero := ddx==0 & ddy==0
-  ][!c(both_zero[.N], both_zero[-.N]), .(id, region1=y, region2=x)]
+  ][!c(both_zero[.N], both_zero[-.N]), .(id, region1=x, region2=y)]
 }, by=Cluster][]
 
 bands_for_two_clusters <- get_polygons(pixels_for_two_clusters)
