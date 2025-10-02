@@ -1,5 +1,12 @@
+See [[https://tdhock.github.io/gallery-hic/][index of interactive figures in HiC gallery repo]].
+
 ** 1 Oct 2025
-[[file:data-2025-10-01/figure-pixels-volcano-interactive.R]] makes interactive figure with volcano plot linked to pixel heat map: https://tdhock.github.io/2025-10-01-HiC-pixels-volcano/
+
+[[file:data-2025-10-01/figure-pixels-volcano-interactive.R]] makes interactive figure with volcano plot linked to pixel heat map: https://tdhock.github.io/2025-10-01-HiC-pixels-volcano
+
+[[file:data-2025-10-01/figure-pixels-volcano-interactive-zoom.R]] makes interactive figure with volcano plot linked to zoomable pixel heat map: https://tdhock.github.io/2025-10-01-HiC-pixels-volcano-zoom
+
+[[file:data-2025-10-01/figure-pixels-volcano-interactive-clusters.R]] makes interactive figure with volcano plot linked to pixel heat map, select clusters: https://tdhock.github.io/2025-10-01-HiC-pixels-volcano-clusters
 
 ** 26 Sept 2025
 
