@@ -45,7 +45,7 @@ ggplot()+
 out_first <- out_elements_some[, .SD[1], by=.(nb_clust, id)]
 dcast(out_first, nb_clust + tile_id ~., list(min, max), value.var=c("rel_x","rel_y"))
 viz <- animint(
-  title="Hicream Exploration",
+  title="Hicream Exploration, one TSV file for polygons",
   scatter = ggplot() +
     ggtitle("1. Select number of clusters") +
     geom_point(aes(
@@ -75,10 +75,10 @@ viz <- animint(
       axis.title = element_blank(),
       axis.line = element_blank()
     ) + 
-    theme_animint(width=400, height=400),
+    theme_animint(width=400, height=400, last_in_row=TRUE),
   tiles=ggplot()+
     ggtitle("2. Select tile")+
-    theme_animint(width=1200, height=250)+
+    theme_animint(width=1200, height=250, colspan=2)+
     geom_tile(aes(
       round_x, round_y, fill=mean_IFF),
       showSelected="nb_clust",
@@ -92,7 +92,59 @@ viz <- animint(
   source="https://github.com/tdhock/hicream-viz/blob/main/example_animint2_hicream/plot_2025-09-25.R"
 )
 if(FALSE){
-  animint2pages(viz, "2025-09-25-hicream")
+  animint2pages(viz, "2025-09-25-hicream", chromote_sleep_seconds=5)
+}
+viz
+
+viz <- animint(
+  title="Hicream Exploration, five TSV files for polygons",
+  scatter = ggplot() +
+    ggtitle("1. Select number of clusters") +
+    geom_point(aes(
+      x=nb_clust, y=crit),
+      shape=21,
+      size=4,
+      data=df_crit)  +
+    make_tallrect(df_crit, "nb_clust") +
+    scale_x_continuous("nb_clust", labels = as.character(df_crit$nb_clust), breaks = df_crit$nb_clust)+
+    theme_animint(width=400, height=400),
+  hic = ggplot() +
+    ggtitle("3. Details of selected tile")+
+    geom_polygon(
+      data = out_elements_some,
+      showSelected = c("nb_clust", "tile_id"),
+      aes(rel_x, rel_y, group= id, fill=IFF),
+      ##chunk_vars=character(),##THIS IS THE ONLY DIFFERENCE.
+      colour=NA) +
+    scale_fill_gradient(low="white",high="black")+
+    theme(
+      panel.background = element_rect(fill = "white", colour = NA),
+      plot.background = element_rect(fill = "white", colour = NA),
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank(),
+      axis.ticks = element_blank(),
+      axis.text = element_blank(),
+      axis.title = element_blank(),
+      axis.line = element_blank()
+    ) + 
+    theme_animint(width=400, height=400, last_in_row=TRUE),
+  tiles=ggplot()+
+    ggtitle("2. Select tile")+
+    theme_animint(width=1200, height=250, colspan=2)+
+    geom_tile(aes(
+      round_x, round_y, fill=mean_IFF),
+      showSelected="nb_clust",
+      clickSelects="tile_id",
+      data=out_elem_mean)+
+    scale_fill_gradient(low="white",high="black"),
+  out.dir="plot_hicream",
+  first=list(
+    tile_id="31 1",
+    nb_clust=614),
+  source="https://github.com/tdhock/hicream-viz/blob/main/example_animint2_hicream/plot_2025-09-25.R"
+)
+if(FALSE){
+  animint2pages(viz, "2025-09-25-hicream-chunk", chromote_sleep_seconds=5)
 }
 
 
