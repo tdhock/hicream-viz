@@ -89,11 +89,6 @@ ggplot()+
   scale_color_gradient(low="white",high="black")+
   scale_fill_gradient2()+
   theme_bw()
-two_long <- melt(two_tiles, measure.vars=c("rel_x","rel_y"), id.vars=c("rel_regions", "round_r1r2"))
-two_wide <- dcast(two_long, rel_regions + variable ~ round_r1r2, list)[
-, all_eq := identical(`48100-48100`, `48150-48900`), by=.(rel_regions,variable)][]
-
-comm_chunk <- animint2:::getCommonChunk(two_tiles[, .(x=rel_x, y=rel_y, fill=logFC, color=neg.log10.p, group=rel_regions, showSelected=round_r1r2)], "showSelected", list(group="group"))
 
 viz.common <- animint(
   out.dir="figure-pixels-zoom-common",
@@ -118,11 +113,11 @@ viz.common <- animint(
       showSelected="round_r1r2")+
     scale_fill_gradient2()+
     scale_color_gradient(
-      low="white",high="black",
-      guide=guide_legend(override.aes=list(fill="white")))+
+      low="white",high="black")+
+      ##guide=guide_legend(override.aes=list(fill="white")))+
     theme_bw()+
     theme_animint(height=800, width=800))
-viz.common
+animint2dir(viz.common)
 
 viz.no.common <- animint(
   out.dir="figure-pixels-zoom-no-common",
