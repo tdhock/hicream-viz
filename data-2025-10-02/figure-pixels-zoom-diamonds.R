@@ -90,7 +90,9 @@ ggplot()+
   theme_bw()
 
 viz <- animint(
-  out.dir="figure-pixels-zoom",
+  out.dir="figure-pixels-zoom-diamonds2",
+  title="Hi-C pixels zoom using diamonds",
+  source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-02/figure-pixels-zoom.R",
   pixelTiles=ggplot()+
     geom_polygon(aes(
       corner_x, corner_y, fill=mean.logFC, group=round_r1r2),
@@ -111,11 +113,12 @@ viz <- animint(
     scale_fill_gradient2()+
     scale_color_gradient(
       low="white",high="black",
-      override.aes=list(fill="white"))+
+      guide=guide_legend(override.aes=list(fill="white")))+
     theme_bw()+
     theme_animint(height=800, width=800)
 )
+
 if(FALSE){
-  animint2pages(viz, "2025-10-03-HiC-pixels-zoom", chromote_sleep_seconds=5)
+  animint2pages(viz, "2025-10-02-HiC-pixels-zoom-diamonds", chromote_sleep_seconds=5)
 }
 viz

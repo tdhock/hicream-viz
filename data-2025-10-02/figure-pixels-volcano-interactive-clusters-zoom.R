@@ -3,20 +3,35 @@ library(data.table)
 myround <- function(x,value=1)round(x*value)/value
 pixel_dt <- fread("../data-2025-09-26/hicream_chr19_50000.tsv")[, let(
   Cluster=factor(clust),
-  round_region1=myround(region1,1/100),
-  round_region2=myround(region2,1/100),
   neg.log10.p = -log10(p.value)
-)][, region_tile := paste0(round_region1,"-",round_region2)][]
+)]
+for(i in 1:2){
+  region_i <- pixel_dt[[paste0("region",i)]]
+  round_region_i <- myround(region_i, 1/100)
+  set(pixel_dt, j=paste0("round_region",i), value=round_region_i)
+  set(pixel_dt, j=paste0("rel_region",i), value=region_i-round_region_i)
+}
+pixel_dt[
+, rel_regions := paste0(rel_region1,",",rel_region2)
+][, .(corners=.N), by=rel_regions]
+for(prefix in c("","round_")){
+  r <- function(i)pixel_dt[[paste0(prefix,"region",i)]]
+  value <- paste0(r(1),"-",r(2))
+  set(pixel_dt, j=paste0(prefix,"r1r2"), value=value)
+}
+length(unique(pixel_dt$r1r2))
+
 region_tiles <- pixel_dt[, .(
   pixels=.N,
   mean.neg.log10.p=mean(neg.log10.p),
+  mean.logFC=mean(logFC),
   clusters=length(unique(Cluster))
-), by=.(region_tile,round_region1,round_region2)]
+), by=.(round_r1r2,round_region1,round_region2)]
 ggplot()+
   geom_tile(aes(
-    round_region1, round_region2, fill=clusters),
+    round_region1, round_region2, fill=mean.logFC),
     data=region_tiles)+
-  scale_fill_gradient(low="white", high="black")+
+  scale_fill_gradient2()+
   coord_equal()
 
 cluster_dt <- pixel_dt[, {
@@ -43,41 +58,78 @@ cluster_dt <- pixel_dt[, {
   ][!c(both_zero[.N], both_zero[-.N]), .(id, region1=x, region2=y)]
 }, by=Cluster][]
 
-
-  geom_polygon(aes(
-    region1, region2, group=paste(Cluster,id)),
-    fill="black",
-    alpha=0.5,
-    data=cluster_dt)
-
-
-
 r1r2_xy_mat <- rbind(
   c(0.5, -0.5),
   c(0.5, 0.5))
 corners <- function(corner1, corner2)data.table(corner1, corner2)
-get_xy <- function(r1, r2, half.width){
-  rbind(
+set_xy <- function(DT, prefix){
+  geti <- function(i)DT[[paste0(prefix,i)]]
+  DT[, paste0(
+    prefix, "_", c("x","y")
+  ) := as.data.table(
+    cbind(geti(1), geti(2)) %*% r1r2_xy_mat
+  )]
+}
+get_corners <- function(r1, r2, half.width){
+  set_xy(rbind(
     corners(r1-half.width, r2-half.width),
     corners(r1-half.width, r2+half.width),
     corners(r1+half.width, r2+half.width),
     corners(r1+half.width, r2-half.width),
     corners(r1-half.width, r2-half.width)
-  )[, c("x","y") := as.data.table(cbind(corner1, corner2) %*% r1r2_xy_mat)]
+  ), "corner")
 }
-pixel_xy <- pixel_dt[, data.table(.SD, get_xy(region1, region2, 0.4))]
-region_tiles_xy <- region_tiles[
-, data.table(.SD, get_xy(round_region1, round_region2, 40))]
+expand <- 45
+pixel_xy <- pixel_dt[, data.table(.SD, get_corners(region1, region2, expand/100))]
+set_xy(pixel_xy, "round_region")
+for(xy in c("x","y")){
+  xy_val <- pixel_xy[[paste0("corner_",xy)]]
+  rxy_val <- pixel_xy[[paste0("round_region_",xy)]]
+  set(pixel_xy, j=paste0("rel_",xy), value=xy_val-rxy_val)
+}
+region_tiles_xy <- region_tiles[, data.table(
+  .SD, get_corners(round_region1, round_region2, expand)
+)]
 
 ggplot()+
-  coord_equal()+
   geom_polygon(aes(
-    x, y, fill=clusters, group=region_tile),
+    corner_x, corner_y, fill=mean.logFC, group=round_r1r2),
     data=region_tiles_xy,
     color="black")+
-  scale_fill_gradient(low="white",high="black")+
+  scale_fill_gradient2()+
   theme_bw()
 
+two_tiles <- pixel_xy[round_r1r2 %in% unique(round_r1r2)[c(1,40)] ]
+ggplot()+
+  facet_wrap("round_r1r2")+
+  geom_polygon(aes(
+    rel_x, rel_y, fill=logFC,
+    color=neg.log10.p,
+    group=rel_regions),
+    data=two_tiles)+
+  scale_color_gradient(low="white",high="black")+
+  scale_fill_gradient2()+
+  theme_bw()
+
+animint(
+  out.dir="figure-pixels-volcano-interactive-clusters-zoom",
+  pixelTiles=ggplot()+
+    geom_polygon(aes(
+      corner_x, corner_y, fill=clusters, group=round_r1r2),
+      data=region_tiles_xy,
+      clickSelects="round_r1r2",
+      color="black")+
+    scale_fill_gradient(low="white",high="black")+
+    theme_bw(),
+  pixelZoom=ggplot()+
+    geom_polygon(aes(
+      rel_x, rel_y, fill=logFC, group=r1r2),
+      data=pixel_xy,
+      showSelected="round_r1r2",
+      color="black")+
+    scale_fill_gradient(low="white",high="black")+
+    theme_bw()
+)
 ## TODO.
 
 ggplot()+
