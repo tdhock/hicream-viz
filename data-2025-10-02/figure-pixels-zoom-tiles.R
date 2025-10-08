@@ -1,12 +1,38 @@
 library(animint2)
 ##devtools::load_all("~/R/animint2")
 library(data.table)
-myround <- function(x,value=1)round(x*value)/value
 pixel_dt <- fread("../data-2025-09-26/hicream_chr19_50000.tsv")[, let(
   Cluster=factor(clust),
   neg.log10.p = -log10(p.value)
 )]
+## every region1,2 bin is 50kb.
+r1r2_xy_mat <- rbind(
+  c(0.5, -0.5),
+  c(0.5, 0.5))
+corners <- function(corner1, corner2)data.table(corner1, corner2)
+set_xy <- function(DT, prefix){
+  geti <- function(i)DT[[paste0(prefix,i)]]
+  DT[, paste0(
+    prefix, "_", c("x","y")
+  ) := as.data.table(
+    cbind(geti(1), geti(2)) %*% r1r2_xy_mat
+  )]
+}
+get_corners <- function(r1, r2, half.width){
+  set_xy(rbind(
+    corners(r1-half.width, r2-half.width),
+    corners(r1-half.width, r2+half.width),
+    corners(r1+half.width, r2+half.width),
+    corners(r1+half.width, r2-half.width),
+    corners(r1-half.width, r2-half.width)
+  ), "corner")
+}
+expand <- 45
+expand.prop <- expand/100
+pixel_xy <- pixel_dt[, data.table(.SD, get_corners(region1, region2, expand.prop))]
+
 denom <- 50
+myround <- function(x,value=1)round(x*value)/value
 for(i in 1:2){
   region_i <- pixel_dt[[paste0("region",i)]]
   round_region_i <- myround(region_i, 1/denom)
@@ -36,30 +62,6 @@ ggplot()+
   scale_fill_gradient2()+
   coord_equal()
 
-r1r2_xy_mat <- rbind(
-  c(0.5, -0.5),
-  c(0.5, 0.5))
-corners <- function(corner1, corner2)data.table(corner1, corner2)
-set_xy <- function(DT, prefix){
-  geti <- function(i)DT[[paste0(prefix,i)]]
-  DT[, paste0(
-    prefix, "_", c("x","y")
-  ) := as.data.table(
-    cbind(geti(1), geti(2)) %*% r1r2_xy_mat
-  )]
-}
-get_corners <- function(r1, r2, half.width){
-  set_xy(rbind(
-    corners(r1-half.width, r2-half.width),
-    corners(r1-half.width, r2+half.width),
-    corners(r1+half.width, r2+half.width),
-    corners(r1+half.width, r2-half.width),
-    corners(r1-half.width, r2-half.width)
-  ), "corner")
-}
-expand <- 45
-expand.prop <- expand/100
-pixel_xy <- pixel_dt[, data.table(.SD, get_corners(region1, region2, expand.prop))]
 set_xy(pixel_xy, "round_region")
 for(xy in c("x","y")){
   xy_val <- pixel_xy[[paste0("corner_",xy)]]
