@@ -1,5 +1,5 @@
 library(animint2)
-##devtools::load_all("~/R/animint2")
+devtools::load_all("~/R/animint2")
 library(data.table)
 myround <- function(x,value=1)round(x*value)/value
 pixel_dt <- fread("../data-2025-09-26/hicream_chr19_50000.tsv")[, let(
@@ -113,8 +113,8 @@ viz.common <- animint(
       showSelected="round_r1r2")+
     scale_fill_gradient2()+
     scale_color_gradient(
-      low="white",high="black")+
-      ##guide=guide_legend(override.aes=list(fill="white")))+
+      low="white",high="black",
+      guide=guide_legend(override.aes=list(fill="white")))+
     theme_bw()+
     theme_animint(height=800, width=800))
 viz.common
@@ -137,7 +137,7 @@ viz.no.common <- animint(
       rel_x, rel_y,
       fill=logFC,
       color=neg.log10.p,
-      group=rel_regions),
+      group=r1r2),
       data=pixel_xy,
       showSelected="round_r1r2")+
     scale_fill_gradient2()+
@@ -147,6 +147,7 @@ viz.no.common <- animint(
     theme_bw()+
     theme_animint(height=800, width=800))
 viz.no.common
+system("du -ms figure-pixels-zoom-*/")
 
 if(FALSE){
   animint2pages(viz.common, "2025-10-02-HiC-pixels-zoom-diamonds", chromote_sleep_seconds=5)

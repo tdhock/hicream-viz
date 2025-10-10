@@ -1,10 +1,9 @@
-library(animint2)
-devtools::load_all("~/R/animint2")
 library(data.table)
-pixel_dt <- fread("../data-2025-09-26/hicream_chr19_50000.tsv")[, let(
+pixel_dt <- fread("hicream_chr1_50000.tsv")[, let(
   Cluster=factor(clust),
   neg.log10.p = -log10(p.value)
 )]
+library(animint2)
 ## every region1,2 bin is 50kb.
 r1r2_xy_mat <- rbind(
   c(0.5, -0.5),
@@ -34,7 +33,7 @@ pixel_xy <- set_xy(
   "region")
 
 myround <- function(x, bin_size=1, offset=0)round((x+offset)/bin_size)*bin_size
-off_list <- list(x=0, y=-25)
+off_list <- list(x=20, y=-25)
 for(xy in names(off_list)){
   region_xy <- pixel_xy[[paste0("region_",xy)]]
   corner_xy <- pixel_xy[[paste0("corner_",xy)]]
@@ -78,9 +77,9 @@ ggplot()+
   facet_wrap("round_regions")
 
 viz.common <- animint(
-  out.dir="figure-pixels-zoom-tiles",
-  title="Hi-C pixels zoom using tiles",
-  source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-02/figure-pixels-zoom-tiles.R",
+  out.dir="figure-pixels-chr1-zoom-tiles",
+  title="Hi-C pixels chr1 zoom using tiles",
+  source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-09/figure-pixels-chr1-zoom-tiles.R",
   pixelTiles=ggplot()+
     geom_tile(aes(
       round_region_x, round_region_y, fill=mean.logFC),
@@ -106,8 +105,8 @@ viz.common <- animint(
     theme_animint(height=800, width=800))
 viz.common
 
-system("du -ms figure-pixels-zoom-tiles")
+system("du -ms figure-pixels-chr1-zoom-tiles")
 if(FALSE){
-  animint2pages(viz.common, "2025-10-02-HiC-pixels-zoom-tiles", chromote_sleep_seconds=5)
+  animint2pages(viz.common, "2025-10-09-HiC-pixels-chr1-zoom-tiles", chromote_sleep_seconds=5)
 }
 viz
