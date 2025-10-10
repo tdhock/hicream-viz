@@ -1,5 +1,4 @@
 library(animint2)
-devtools::load_all("~/R/animint2")
 library(data.table)
 pixel_dt <- fread("../data-2025-09-26/hicream_chr19_50000.tsv")[, let(
   Cluster=factor(clust),
