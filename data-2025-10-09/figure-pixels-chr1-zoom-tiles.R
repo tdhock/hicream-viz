@@ -80,38 +80,40 @@ ggplot()+
   theme_bw()+
   facet_wrap("round_regions")
 
-viz.common <- animint(
-  out.dir="figure-pixels-chr1-zoom-tiles",
-  title="Hi-C pixels chr1 zoom using tiles",
-  source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-09/figure-pixels-chr1-zoom-tiles.R",
-  pixelTiles=ggplot()+
-    geom_tile(aes(
-      round_region_x, round_region_y, fill=mean.logFC),
-      data=region_tiles,
-      clickSelects="round_regions",
-      color="black")+
-    scale_fill_gradient2()+
-    theme_bw()+
-    theme_animint(height=300),
-  pixelZoom=ggplot()+
-    geom_polygon(aes(
-      rel_corner_x, rel_corner_y,
-      fill=logFC,
-      color=neg.log10.p,
-      group=rel_regions),
-      data=pixel_xy,
-      showSelected="round_regions")+
-    scale_fill_gradient2()+
-    scale_color_gradient(
-      low="white",high="black",
-      guide=guide_legend(override.aes=list(fill="white")))+
-    theme_bw()+
-    theme_animint(height=800, width=800))
-
 devtools::load_all("~/R/animint2")
-viz.common
+system.time({
+  viz.common <- animint(
+    out.dir="figure-pixels-chr1-zoom-tiles",
+    title="Hi-C pixels chr1 zoom using tiles",
+    source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-09/figure-pixels-chr1-zoom-tiles.R",
+    pixelTiles=ggplot()+
+      geom_tile(aes(
+        round_region_x, round_region_y, fill=mean.logFC),
+        data=region_tiles,
+        clickSelects="round_regions",
+        color="black")+
+      scale_fill_gradient2()+
+      theme_bw()+
+      theme_animint(height=300),
+    pixelZoom=ggplot()+
+      geom_polygon(aes(
+        rel_corner_x, rel_corner_y,
+        fill=logFC,
+        color=neg.log10.p,
+        group=rel_regions),
+        data=pixel_xy,
+        showSelected="round_regions")+
+      scale_fill_gradient2()+
+      scale_color_gradient(
+        low="white",high="black",
+        guide=guide_legend(override.aes=list(fill="white")))+
+      theme_bw()+
+      theme_animint(height=800, width=800))
+  print(viz.common)
+  system("du -ms figure-pixels-chr1-zoom-tiles")
+})
 
-##system("du -ms figure-pixels-chr1-zoom-tiles")
+
 if(FALSE){
   animint2pages(viz.common, "2025-10-09-HiC-pixels-chr1-zoom-tiles", chromote_sleep_seconds=5)
 }
