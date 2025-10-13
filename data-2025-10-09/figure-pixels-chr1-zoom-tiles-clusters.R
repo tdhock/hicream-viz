@@ -4,7 +4,7 @@ pixel_dt <- fread("hicream_chr1_50000.tsv")[, let(
   Cluster=factor(clust),
   neg.log10.p = -log10(p.value)
 )][
-  region1<=rmax & region2<=rmax
+  ##region1<=rmax & region2<=rmax
 ]
 library(animint2)
 
@@ -204,35 +204,86 @@ ggplot()+
   theme_bw()+
   facet_wrap("round_regions")
 
-pixel_dt[, let(
+pixel_dt[, lnl.p := log10(neg.log10.p)][, let(
   round_logFC = myround(logFC,0.25),
-  round_neg.log10.p = myround(neg.log10.p, 5)
+  round_neg.log10.p = myround(neg.log10.p, 5),
+  round_lnl.p = myround(lnl.p, 0.1)
 )][, let(
   volcano_bin = sprintf("logFC=%s -log10(p)=%s", round_logFC, round_neg.log10.p),
+  lnl_bin = sprintf("logFC=%s l-l(p)=%s", round_logFC, round_lnl.p),
   relative_logFC = logFC-round_logFC,
-  relative_neg.log10.p = neg.log10.p-round_neg.log10.p
+  relative_neg.log10.p = neg.log10.p-round_neg.log10.p,
+  relative_lnl.p = lnl.p-round_lnl.p
 )][]
 dcast(pixel_dt, . ~ ., list(min,max,Nvalues=function(x)length(unique(x))), value.var=patterns("round",cols=names(pixel_dt)))
-volcano_heat <- pixel_dt[, .(
+
+volcano_heat_lnl <- pixel_dt[, .(
   pixels=.N
-), by=.(round_logFC,round_neg.log10.p,volcano_bin)]
+), by=.(round_logFC,round_lnl.p,lnl_bin)]
+volcano_heat_lnl[order(pixels)]
+ggplot()+
+  geom_tile(aes(
+    round_logFC, round_lnl.p, fill=log10(pixels)),
+    data=volcano_heat_lnl)+
+  geom_text(aes(
+    round_logFC, round_lnl.p, label=round(log10(pixels))),
+    color="red",
+    size=5,
+    data=volcano_heat_lnl)+
+  scale_fill_gradient(low="white",high="black")+
+  theme_bw()
 
 ggplot()+
   geom_point(aes(
     logFC, neg.log10.p),
     data=pixel_dt)
 
+volcano_heat <- pixel_dt[, .(
+  pixels=.N
+), by=.(round_logFC,round_neg.log10.p,volcano_bin)]
+volcano_heat[order(pixels)]
 ggplot()+
   geom_tile(aes(
     round_logFC, round_neg.log10.p, fill=log10(pixels)),
     data=volcano_heat)+
+  geom_text(aes(
+    round_logFC, round_neg.log10.p, label=round(log10(pixels))),
+    color="red",
+    size=5,
+    data=volcano_heat)+
   scale_fill_gradient(low="white",high="black")+
   theme_bw()
+
+## TODO break up huge log10(p)=0 counts into negative space bins.
+
+## TODO select cluster by size (number of pixels / tiles).
+
+count_by_Cluster <- dcast(
+  pixel_dt,
+  Cluster ~ .,
+  list(min, max, length),
+  value.var=c("logFC", "neg.log10.p"))
+count_by_Cluster_tile <- pixel_dt[, .(
+  displayed_pixels=.N
+), keyby=.(Cluster, round_regions)][
+  count_by_Cluster
+][, let(
+  label=sprintf(
+    "Cluster %s: %d/%d pixels shown, logFC %.1f to %.1f, log10(p) %.1f to %.1f",
+    Cluster, displayed_pixels, logFC_length,
+    logFC_min, logFC_max,
+    neg.log10.p_min, neg.log10.p_max),
+  rel_x = corner_range[, (rel_corner_x_max+rel_corner_x_min)/2],
+  rel_y = corner_range$rel_corner_y_max+1
+)]
+first_list <- as.list(pixel_dt[which.max(neg.log10.p), .(volcano_bin, Cluster)])
+first_list$round_regions <- local_cluster_dt[Cluster==first_list$Cluster, round_regions][1]
 
 viz.common <- animint(
   out.dir="figure-pixels-chr1-zoom-tiles-clusters",
   title="Hi-C pixels chr1 clusters zoom using tiles",
   source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-09/figure-pixels-chr1-zoom-tiles-clusters.R",
+  first=first_list,
   pixelTiles=ggplot()+
     geom_tile(aes(
       x, y, fill=mean.logFC),
@@ -241,6 +292,7 @@ viz.common <- animint(
     geom_polygon(aes(
       region_x, region_y, group=paste(Cluster,id)),
       data=global_cluster_dt,
+      chunk_vars="Cluster",
       fill="transparent",
       color="green",
       showSelected="Cluster")+
@@ -250,6 +302,10 @@ viz.common <- animint(
       clickSelects="round_regions",
       fill="transparent",
       color="black")+
+    scale_x_continuous(
+      "Genomic bin")+
+    scale_y_continuous(
+      "Interaction distance")+
     scale_fill_gradient2()+
     theme_bw()+
     theme_animint(height=300),
@@ -270,6 +326,11 @@ viz.common <- animint(
       clickSelects="Cluster",
       showSelected="round_regions",
       data=local_cluster_dt)+
+    geom_text(aes(
+      rel_x, rel_y, label=label, group=1),
+      size=20,
+      data=count_by_Cluster_tile,
+      showSelected=c("Cluster","round_regions"))+
     scale_fill_gradient2()+
     scale_color_gradient(
       low="white",high="black",
@@ -285,7 +346,9 @@ viz.common <- animint(
     geom_point(aes(
       logFC, neg.log10.p),
       data=pixel_dt,
-      color="green",
+      color="black",
+      fill="green",
+      chunk_vars="Cluster",
       showSelected="Cluster")+
     geom_tile(aes(
       round_logFC, round_neg.log10.p),
@@ -301,6 +364,7 @@ viz.common <- animint(
       data=pixel_dt,
       size=4,
       showSelected="volcano_bin",
+      chunk_vars="volcano_bin",
       fill="white",
       color="green",
       color_off="black",
@@ -308,9 +372,11 @@ viz.common <- animint(
     theme_bw()+
     theme_animint(height=300)
 )
-print(viz.common)
+##print(viz.common)
+system("du -ms figure-pixels-chr1-zoom-tiles-clusters/*|sort -n")
 system("du -ms figure-pixels-chr1-zoom-tiles-clusters")
-
+## 817	figure-pixels-chr1-zoom-tiles-clusters for 20k files.
+## https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github#repository-size-limits says "We recommend repositories remain small, ideally less than 1 GB," so 817MB is OK.
 
 if(FALSE){
   animint2pages(viz.common, "2025-10-09-HiC-pixels-chr1-zoom-tiles-clusters", chromote_sleep_seconds=5)
