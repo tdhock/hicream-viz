@@ -258,6 +258,10 @@ ggplot()+
 
 ## TODO select cluster by size (number of pixels / tiles).
 
+## TODO use green points instead of polygon on interaction distance heat map.
+
+## TODO on volcanoHeat, use geom_point(showSelected=c("Cluster","round_regions"),chunk_vars="round_regions") instead of showSelected="Cluster" -- show only pixels in currently selected interaction tile.
+
 count_by_Cluster <- dcast(
   pixel_dt,
   Cluster ~ .,
@@ -330,6 +334,7 @@ viz.common <- animint(
       rel_x, rel_y, label=label, group=1),
       size=20,
       data=count_by_Cluster_tile,
+      chunk_vars="round_regions",
       showSelected=c("Cluster","round_regions"))+
     scale_fill_gradient2()+
     scale_color_gradient(
