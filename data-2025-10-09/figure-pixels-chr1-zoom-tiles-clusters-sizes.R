@@ -4,7 +4,7 @@ pixel_dt <- fread("hicream_chr1_50000.tsv")[, let(
   Cluster=factor(clust),
   neg.log10.p = -log10(p.value)
 )][
-  ##region1<=rmax & region2<=rmax
+  region1<=rmax & region2<=rmax
 ]
 library(animint2)
 
@@ -70,7 +70,6 @@ get_boundaries <- function(DT){
   , both_zero := ddx==0 & ddy==0
   ][!c(both_zero[.N], both_zero[-.N]), .(id, region1=x, region2=y)], "region")
 }
-global_cluster_dt <- pixel_dt[, get_boundaries(.SD), by=Cluster]
 
 myround <- function(x, bin_size=1, offset=0)round((x+offset)/bin_size)*bin_size
 off_list <- list(x=20, y=-24)
@@ -83,23 +82,17 @@ for(xy in names(off_list)){
   set(pixel_corner_dt, j=paste0("round_region_",xy), value=round_region_xy)
   set(pixel_corner_dt, j=paste0("rel_region_",xy), value=region_xy-round_region_xy)
   set(pixel_corner_dt, j=paste0("rel_corner_",xy), value=round(corner_xy-round_region_xy,2))
-  clust_region <- global_cluster_dt[[paste0("region_",xy)]]
-  clust_round <- round_fun(clust_region)
-  set(global_cluster_dt, j=paste0("round_region_",xy), value=clust_round)
-  set(global_cluster_dt, j=paste0("rel_region_",xy), value=clust_region-clust_round)
 }
 add_round_regions <- function(DT)DT[
 , round_regions := paste0(round_region_x,",",round_region_y)
 ][]
-add_round_regions(global_cluster_dt)
 add_round_regions(pixel_dt)
 add_round_regions(pixel_corner_dt)[, let(
   rel_regions = paste0(rel_region_x,",",rel_region_y)
 )][, .(corners=.N), by=rel_regions]
 
-DT <- pixel_dt[Cluster==73 & round_regions=="600,350"]
-## TODO investigate why there are Cluster 73 polygons adjacent to each other here.
-
+local_cluster_presence <- unique(pixel_dt[, .(
+  round_region_x, round_region_y, round_regions, Cluster)])
 local_cluster_dt <- pixel_dt[
 , get_boundaries(.SD)
 , by=.(Cluster,round_region_x,round_region_y,round_regions)]
@@ -113,18 +106,6 @@ for(xy in names(off_list)){
   local_cluster_dt[, paste0("rel_region_",xy) := get(paste0("region_",xy))-get(paste0("round_region_",xy))][]
   region_tiles[, (xy) := get(paste0("round_region_",xy))-off_list[[xy]]][]
 }
-
-ggplot()+
-  geom_tile(aes(
-    x, y, fill=mean.logFC),
-    data=region_tiles)+
-  geom_polygon(aes(
-    region_x, region_y, group=paste(Cluster,id)),
-    data=global_cluster_dt,
-    fill="white",
-    color="black",
-    alpha=0.5)+
-  scale_fill_gradient2()
 
 corner_range <- dcast(
   pixel_corner_dt,
@@ -177,12 +158,6 @@ ggplot()+
   theme_bw()
 
 ## TODO break up huge log10(p)=0 counts into negative space bins.
-
-## TODO select cluster by size (number of pixels / tiles).
-
-## TODO use green points instead of polygon on interaction distance heat map.
-
-## TODO on volcanoHeat, use geom_point(showSelected=c("Cluster","round_regions"),chunk_vars="round_regions") instead of showSelected="Cluster" -- show only pixels in currently selected interaction tile.
 
 count_by_Cluster <- dcast(
   pixel_dt,
@@ -264,6 +239,8 @@ viz.common <- animint(
       data=pixel_dt,
       color="black",
       fill=cluster.color,
+      color_off="green",
+      fill_off="transparent",
       chunk_vars="Cluster",
       showSelected="Cluster")+
     geom_tile(aes(
@@ -281,11 +258,13 @@ viz.common <- animint(
       fill=logFC,
       color=neg.log10.p,
       group=rel_regions),
+      clickSelects="Cluster",
+      alpha_off=1,
+      alpha=1,
       data=pixel_corner_dt,
       showSelected="round_regions")+
-    geom_polygon(aes(
+    geom_path(aes(
       rel_region_x, rel_region_y, group=paste(Cluster, id)),
-      fill="transparent",
       color=cluster.color,
       alpha=1,
       alpha_off=0.2,
@@ -307,7 +286,7 @@ viz.common <- animint(
   clusterHeat=ggplot()+
     ggtitle("Cluster size summary")+
     geom_tile(aes(
-      round.log10.pixels, rel_row,
+      round.log10.pixels, round.log2.tiles,
       fill=log10(clusters)),
       color="grey",
       data=cluster_heat_dt)+
@@ -318,7 +297,7 @@ viz.common <- animint(
       showSelected="Cluster",
       data=count_by_Cluster)+
     geom_tile(aes(
-      round.log10.pixels, rel_row),
+      round.log10.pixels, round.log2.tiles),
       fill="transparent",
       color="black",
       clickSelects="size_bin",
@@ -343,7 +322,7 @@ viz.common <- animint(
   clusterZoom=ggplot()+
     ggtitle("Cluster size zoom")+
     geom_point(aes(
-      rel.log10.pixels, rel.log2.tiles),
+      rel.log10.pixels, rel_row),
       size=4,
       fill="white",
       color=cluster.color,
@@ -360,12 +339,13 @@ viz.common <- animint(
       x, y, fill=mean.logFC),
       data=region_tiles,
       color="transparent")+
-    geom_polygon(aes(
-      region_x, region_y, group=paste(Cluster,id)),
-      data=global_cluster_dt,
-      chunk_vars="Cluster",
-      fill="transparent",
-      color=cluster.color,
+    geom_point(aes(
+      round_region_x-off_list$x,
+      round_region_y-off_list$y,
+      group=round_regions),
+      data=local_cluster_presence,
+      color="black",
+      fill=cluster.color,
       showSelected="Cluster")+
     geom_tile(aes(
       x, y),
