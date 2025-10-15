@@ -15,6 +15,8 @@ Figure above shows that animint2 does not support drawing a polygon with holes, 
 Figure above shows that ggplot2 does support drawing a polygon with holes, computed via either contourLines() or isoband::isobands().
 Interface is aes(subgroup).
 
+Work-around that we can use in the short term in this project: change geom_polygon(fill="transparent") to geom_path() (no fill), which only draws the borders, which are correct, example: [[https://tdhock.github.io/2025-10-09-HiC-pixels-chr1-zoom-tiles-clusters-sizes/][data viz with selector for cluster size]].
+
 ** 1 Oct 2025
 
 [[file:data-2025-10-01/figure-pixels-volcano-interactive.R]] makes interactive figure with volcano plot linked to pixel heat map: https://tdhock.github.io/2025-10-01-HiC-pixels-volcano
