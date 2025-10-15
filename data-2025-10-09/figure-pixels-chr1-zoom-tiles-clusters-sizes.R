@@ -4,7 +4,7 @@ pixel_dt <- fread("hicream_chr1_50000.tsv")[, let(
   Cluster=factor(clust),
   neg.log10.p = -log10(p.value)
 )][
-  region1<=rmax & region2<=rmax
+  ##region1<=rmax & region2<=rmax
 ]
 library(animint2)
 
@@ -34,9 +34,6 @@ expand <- 45
 expand.prop <- expand/100
 set_xy(pixel_dt, "region")
 pixel_corner_dt <- pixel_dt[, data.table(.SD, get_corners(region1, region2, expand.prop))]
-
-DT <- pixel_dt[Cluster==73 & round_regions=="600,350"]
-## TODO investigate why there are Cluster 73 polygons adjacent to each other here.
 
 get_boundaries <- function(DT){
   dcast_input <- rbind(
@@ -99,6 +96,9 @@ add_round_regions(pixel_dt)
 add_round_regions(pixel_corner_dt)[, let(
   rel_regions = paste0(rel_region_x,",",rel_region_y)
 )][, .(corners=.N), by=rel_regions]
+
+DT <- pixel_dt[Cluster==73 & round_regions=="600,350"]
+## TODO investigate why there are Cluster 73 polygons adjacent to each other here.
 
 local_cluster_dt <- pixel_dt[
 , get_boundaries(.SD)
@@ -307,7 +307,7 @@ viz.common <- animint(
   clusterHeat=ggplot()+
     ggtitle("Cluster size summary")+
     geom_tile(aes(
-      round.log10.pixels, round.log2.tiles,
+      round.log10.pixels, rel_row,
       fill=log10(clusters)),
       color="grey",
       data=cluster_heat_dt)+
@@ -318,7 +318,7 @@ viz.common <- animint(
       showSelected="Cluster",
       data=count_by_Cluster)+
     geom_tile(aes(
-      round.log10.pixels, round.log2.tiles),
+      round.log10.pixels, rel_row),
       fill="transparent",
       color="black",
       clickSelects="size_bin",
@@ -383,8 +383,7 @@ viz.common <- animint(
 )
 viz.common
 
-
 if(FALSE){
-  animint2pages(viz.common, "2025-10-09-HiC-pixels-chr1-zoom-tiles-clusters", chromote_sleep_seconds=5)
+  animint2pages(viz.common, "2025-10-09-HiC-pixels-chr1-zoom-tiles-clusters-sizes", chromote_sleep_seconds=5)
 }
 
