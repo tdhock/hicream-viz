@@ -6,45 +6,7 @@ pixel_dt <- fread("hicream_chr1_50000.tsv")[, let(
 )][
   region1<=rmax & region2<=rmax
 ]
-library(animint2)
-
-expand <- 45
-expand.prop <- expand/100
-get_boundaries <- function(DT){
-  dcast_input <- rbind(
-    DT[, .(
-      region1=seq(min(region1), max(region1)),
-      region2=min(region2)-1L,
-      value=0
-    )],
-    DT[, .(
-      region1=min(region1)-1L,
-      region2=seq(min(region2), max(region2)),
-      value=0
-    )],
-    DT[, .(region1, region2, value=1)])
-  wide <- dcast(dcast_input, region1 ~ region2, fill=0)
-  m <- as.matrix(wide[,-1])
-  clust_id_mat <- cbind(rbind(m, 0), 0)
-  exp_one <- function(x)c(x, max(x)+1)
-  path_list <- contourLines(
-    exp_one(wide$region),
-    exp_one(as.integer(colnames(m))),
-    clust_id_mat, levels=0.5)
-  xy <- c('x','y')
-  circ_diff_vec <- function(z)diff(c(z,z[1]))
-  circ_diff_dt <- function(DT, XY)DT[
-  , paste0("d",XY) := lapply(.SD, circ_diff_vec), .SDcols=XY]
-  out <- data.table(id=seq_along(path_list))[
-  , path_list[[id]][xy]
-  , by=id]
-  for(XY in list(xy, paste0("d",xy))){
-    circ_diff_dt(out, XY)
-  }
-  set_xy(out[
-  , both_zero := ddx==0 & ddy==0
-  ][!c(both_zero[.N], both_zero[-.N]), .(id, region1=x, region2=y)], "region")
-}
+library(ggplot2)
 
 r1r2_xy_mat <- rbind(
   c(0.5, -0.5),
@@ -72,21 +34,7 @@ add_round_regions(pixel_dt)
 
 show_rr <- "600,350"
 show_Cluster <- 73
-local_clust <- get_boundaries(DT <- pixel_dt[Cluster==show_Cluster & round_regions==show_rr])
-## TODO investigate why there are Cluster 73 polygons adjacent to each other here.
-
-show_pixels <- pixel_dt[round_regions==show_rr]
-gg <- ggplot()+
-  ggtitle("2 should have holes but does not")+
-  geom_tile(aes(
-    region1, region2),
-    data=show_pixels)+
-  geom_polygon(aes(
-    region1, region2, group=id, fill=factor(id)),
-    data=local_clust,
-    color="black")
-gg
-
+DT <- pixel_dt[Cluster==show_Cluster & round_regions==show_rr]
 dcast_input <- rbind(
   DT[, .(
     region1=seq(min(region1), max(region1)),
@@ -154,19 +102,19 @@ for(fun in names(out_list)){
 (out_dt <- rbindlist(out_dt_list))
 
 gg <- ggplot()+
-  ggtitle("holes do not work in animint2")+
+  ggtitle("holes work with ggplot2 and aes(subgroup)")+
   geom_tile(aes(
     region2, region1, fill=factor(value)),
     color=NA,
     data=dcast_input)+
   geom_polygon(aes(
-    y, x, group=id),
+    y, x, group=1, subgroup=id),
     alpha=0.2,
     fill="black",
     color="black",
     data=out_dt)+
   scale_y_reverse()+
   facet_grid(. ~ fun, labeller=label_both)
-png("figure-pixels-chr1-Cluster73-debug.png", width=7, height=3, units="in", res=200)
+png("figure-pixels-chr1-Cluster73-ggplot2.png", width=7, height=3, units="in", res=200)
 print(gg)
 dev.off()
