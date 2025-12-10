@@ -1,10 +1,10 @@
 library(data.table)
-rmax <- 200
+rmax <- 1000
 pixel_dt <- fread("hicream_chr1_50000.tsv")[, let(
   Cluster=factor(clust),
   neg.log10.p = -log10(p.value)
 )][
-  ##region1<=rmax & region2<=rmax
+  region1<=rmax & region2<=rmax
 ]
 library(animint2)
 
@@ -34,8 +34,6 @@ expand <- 45
 expand.prop <- expand/100
 set_xy(pixel_dt, "region")
 pixel_corner_dt <- pixel_dt[, data.table(.SD, get_corners(region1, region2, expand.prop))]
-
-##DT <- pixel_dt[Cluster==4860 & round_regions=="200,0"]
 
 get_boundaries <- function(DT){
   dcast_input <- rbind(
@@ -72,7 +70,6 @@ get_boundaries <- function(DT){
   , both_zero := ddx==0 & ddy==0
   ][!c(both_zero[.N], both_zero[-.N]), .(id, region1=x, region2=y)], "region")
 }
-global_cluster_dt <- pixel_dt[, get_boundaries(.SD), by=Cluster]
 
 myround <- function(x, bin_size=1, offset=0)round((x+offset)/bin_size)*bin_size
 off_list <- list(x=20, y=-24)
@@ -85,20 +82,17 @@ for(xy in names(off_list)){
   set(pixel_corner_dt, j=paste0("round_region_",xy), value=round_region_xy)
   set(pixel_corner_dt, j=paste0("rel_region_",xy), value=region_xy-round_region_xy)
   set(pixel_corner_dt, j=paste0("rel_corner_",xy), value=round(corner_xy-round_region_xy,2))
-  clust_region <- global_cluster_dt[[paste0("region_",xy)]]
-  clust_round <- round_fun(clust_region)
-  set(global_cluster_dt, j=paste0("round_region_",xy), value=clust_round)
-  set(global_cluster_dt, j=paste0("rel_region_",xy), value=clust_region-clust_round)
 }
 add_round_regions <- function(DT)DT[
 , round_regions := paste0(round_region_x,",",round_region_y)
 ][]
-add_round_regions(global_cluster_dt)
 add_round_regions(pixel_dt)
 add_round_regions(pixel_corner_dt)[, let(
   rel_regions = paste0(rel_region_x,",",rel_region_y)
 )][, .(corners=.N), by=rel_regions]
 
+local_cluster_presence <- unique(pixel_dt[, .(
+  round_region_x, round_region_y, round_regions, Cluster)])
 local_cluster_dt <- pixel_dt[
 , get_boundaries(.SD)
 , by=.(Cluster,round_region_x,round_region_y,round_regions)]
@@ -113,97 +107,11 @@ for(xy in names(off_list)){
   region_tiles[, (xy) := get(paste0("round_region_",xy))-off_list[[xy]]][]
 }
 
-ggplot()+
-  geom_tile(aes(
-    x, y, fill=mean.logFC),
-    data=region_tiles)+
-  geom_polygon(aes(
-    region_x, region_y, group=paste(Cluster,id)),
-    data=global_cluster_dt,
-    fill="white",
-    color="black",
-    alpha=0.5)+
-  scale_fill_gradient2()
-
-two_tiles <- pixel_corner_dt[round_regions %in% unique(round_regions)[1:2] ]
-ggplot()+
-  geom_polygon(aes(
-    rel_corner_x, rel_corner_y,
-    fill=logFC,
-    color=neg.log10.p,
-    group=rel_regions),
-    data=two_tiles,
-    showSelected="round_regions")+
-  geom_path(aes(
-    rel_region_x, rel_region_y, group=paste(Cluster, id)),
-    data=global_cluster_dt)+
-  scale_fill_gradient2()+
-  scale_color_gradient(
-    low="white",high="black",
-    guide=guide_legend(override.aes=list(fill="white")))+
-  theme_bw()+
-  facet_wrap("round_regions")
-
 corner_range <- dcast(
   pixel_corner_dt,
   . ~ .,
   list(min,max),
   value.var=c("rel_corner_x","rel_corner_y"))
-local_cluster_in <- with(corner_range, local_cluster_dt[
-  rel_region_x > rel_corner_x_min &
-  rel_region_x < rel_corner_x_max &
-  rel_region_y > rel_corner_y_min &
-  rel_region_y < rel_corner_y_max])
-ggplot()+
-  geom_polygon(aes(
-    rel_corner_x, rel_corner_y,
-    fill=logFC,
-    color=neg.log10.p,
-    group=rel_regions),
-    data=two_tiles,
-    showSelected="round_regions")+
-  geom_polygon(aes(
-    rel_region_x, rel_region_y, group=paste(Cluster, id)),
-    fill="white",
-    color="black",
-    alpha=0.5,
-    data=local_cluster_dt)+
-  geom_point(aes(
-    rel_region_x, rel_region_y),
-    shape=1,
-    data=local_cluster_in)+
-  scale_fill_gradient2()+
-  scale_color_gradient(
-    low="white",high="black",
-    guide=guide_legend(override.aes=list(fill="white")))+
-  theme_bw()+
-  facet_wrap("round_regions")
-
-ggplot()+
-  geom_polygon(aes(
-    rel_corner_x, rel_corner_y,
-    fill=logFC,
-    color=neg.log10.p,
-    group=rel_regions),
-    data=pixel_corner_dt[Cluster==4860],
-    showSelected="round_regions")+
-  geom_polygon(aes(
-    rel_region_x, rel_region_y, group=paste(Cluster, id)),
-    fill="white",
-    color="black",
-    alpha=0.5,
-    data=local_cluster_dt[Cluster==4860])+
-  geom_point(aes(
-    rel_region_x, rel_region_y),
-    shape=1,
-    data=local_cluster_in[Cluster==4860])+
-  scale_fill_gradient2()+
-  scale_color_gradient(
-    low="white",high="black",
-    guide=guide_legend(override.aes=list(fill="white")))+
-  theme_bw()+
-  facet_wrap("round_regions")
-
 pixel_dt[, lnl.p := log10(neg.log10.p)][, let(
   round_logFC = myround(logFC,0.25),
   round_neg.log10.p = myround(neg.log10.p, 5),
@@ -233,11 +141,6 @@ ggplot()+
   scale_fill_gradient(low="white",high="black")+
   theme_bw()
 
-ggplot()+
-  geom_point(aes(
-    logFC, neg.log10.p),
-    data=pixel_dt)
-
 volcano_heat <- pixel_dt[, .(
   pixels=.N
 ), by=.(round_logFC,round_neg.log10.p,volcano_bin)]
@@ -256,17 +159,17 @@ ggplot()+
 
 ## TODO break up huge log10(p)=0 counts into negative space bins.
 
-## TODO select cluster by size (number of pixels / tiles).
-
-## TODO use green points instead of polygon on interaction distance heat map.
-
-## TODO on volcanoHeat, use geom_point(showSelected=c("Cluster","round_regions"),chunk_vars="round_regions") instead of showSelected="Cluster" -- show only pixels in currently selected interaction tile.
-
 count_by_Cluster <- dcast(
   pixel_dt,
   Cluster ~ .,
-  list(min, max, length),
-  value.var=c("logFC", "neg.log10.p"))
+  list(min, max),
+  value.var=c("logFC", "neg.log10.p")
+)[
+  pixel_dt[, .(
+    pixels=.N,
+    n.tiles=length(unique(round_regions))
+  ), keyby=Cluster]
+]
 count_by_Cluster_tile <- pixel_dt[, .(
   displayed_pixels=.N
 ), keyby=.(Cluster, round_regions)][
@@ -274,7 +177,7 @@ count_by_Cluster_tile <- pixel_dt[, .(
 ][, let(
   label=sprintf(
     "Cluster %s: %d/%d pixels shown, logFC %.1f to %.1f, log10(p) %.1f to %.1f",
-    Cluster, displayed_pixels, logFC_length,
+    Cluster, displayed_pixels, pixels,
     logFC_min, logFC_max,
     neg.log10.p_min, neg.log10.p_max),
   rel_x = corner_range[, (rel_corner_x_max+rel_corner_x_min)/2],
@@ -283,49 +186,83 @@ count_by_Cluster_tile <- pixel_dt[, .(
 first_list <- as.list(pixel_dt[which.max(neg.log10.p), .(volcano_bin, Cluster)])
 first_list$round_regions <- local_cluster_dt[Cluster==first_list$Cluster, round_regions][1]
 
+table(count_by_Cluster$n.tiles)
+hist(log10(count_by_Cluster$pixels))
+
+cluster_heat_dt <- count_by_Cluster[, let(
+  log10.pixels=log10(pixels)
+)][, let(
+  round.log10.pixels=myround(log10.pixels, 0.25)
+)][, let(
+  size_bin=sprintf(
+    "tiles=%.2f log10(pixels)=%.2f",
+    n.tiles, round.log10.pixels),
+  rel.log10.pixels=log10.pixels-round.log10.pixels
+)][, .(
+  clusters=.N
+), by=.(size_bin, n.tiles, round.log10.pixels)]
+ggplot()+
+  geom_tile(aes(
+    round.log10.pixels, n.tiles,
+    fill=log10(clusters)),
+    data=cluster_heat_dt)+
+  scale_fill_gradient(low="white",high="black")+
+  theme_bw()+
+  scale_y_continuous(breaks=1:10)
+
+count_by_Cluster[
+, rel_row := 1:.N
+, by=.(size_bin, rel.log10.pixels)]
+ggplot()+
+  geom_point(aes(
+    rel.log10.pixels, rel_row),
+    data=count_by_Cluster)+
+  facet_wrap("size_bin")
+
+cluster.color <- "green"
+out.dir <- "figure-pixels-chr1-zoom-tiles-clusters-sizes-new"
 viz.common <- animint(
-  out.dir="figure-pixels-chr1-zoom-tiles-clusters",
-  title="Hi-C pixels chr1 clusters zoom using tiles",
-  source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-09/figure-pixels-chr1-zoom-tiles-clusters.R",
-  video="https://vimeo.com/1127879183",
+  out.dir=out.dir,
+  title="Hi-C pixels chr1 clusters zoom using tiles and sizes",
+  source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-09/figure-pixels-chr1-zoom-tiles-clusters-sizes-new.R",
   first=first_list,
-  pixelTiles=ggplot()+
+  volcanoHeat=ggplot()+
+    ggtitle("Volcano plot summary")+
     geom_tile(aes(
-      x, y, fill=mean.logFC),
-      data=region_tiles,
-      color="transparent")+
-    geom_polygon(aes(
-      region_x, region_y, group=paste(Cluster,id)),
-      data=global_cluster_dt,
+      round_logFC, round_neg.log10.p, fill=log10(pixels)),
+      color="grey",
+      size=1,
+      data=volcano_heat)+
+    geom_point(aes(
+      logFC, neg.log10.p),
+      data=pixel_dt,
+      color="black",
+      fill=cluster.color,
       chunk_vars="Cluster",
-      fill="transparent",
-      color="green",
       showSelected="Cluster")+
     geom_tile(aes(
-      x, y),
-      data=region_tiles,
-      clickSelects="round_regions",
+      round_logFC, round_neg.log10.p),
+      clickSelects="volcano_bin",
       fill="transparent",
-      color="black")+
-    scale_x_continuous(
-      "Genomic bin")+
-    scale_y_continuous(
-      "Interaction distance")+
-    scale_fill_gradient2()+
+      data=volcano_heat)+
+    scale_fill_gradient(low="white",high="black")+
     theme_bw()+
-    theme_animint(height=300),
-  pixelZoom=ggplot()+
+    theme_animint(width=300, height=300),
+  genomeZoom=ggplot()+
+    ggtitle("Genomic interaction zoom")+
     geom_polygon(aes(
       rel_corner_x, rel_corner_y,
       fill=logFC,
       color=neg.log10.p,
       group=rel_regions),
+      clickSelects="Cluster",
+      alpha_off=1,
+      alpha=1,
       data=pixel_corner_dt,
       showSelected="round_regions")+
-    geom_polygon(aes(
+    geom_path(aes(
       rel_region_x, rel_region_y, group=paste(Cluster, id)),
-      fill="transparent",
-      color="green",
+      color=cluster.color,
       alpha=1,
       alpha_off=0.2,
       clickSelects="Cluster",
@@ -342,29 +279,31 @@ viz.common <- animint(
       low="white",high="black",
       guide=guide_legend(override.aes=list(fill="white")))+
     theme_bw()+
-    theme_animint(height=800, width=800, rowspan=3, last_in_row=TRUE),
-  volcanoHeat=ggplot()+
+    theme_animint(height=800, width=800, rowspan=3),
+  clusterHeat=ggplot()+
+    ggtitle("Cluster size summary")+
     geom_tile(aes(
-      round_logFC, round_neg.log10.p, fill=log10(pixels)),
+      round.log10.pixels, n.tiles,
+      fill=log10(clusters)),
       color="grey",
-      size=1,
-      data=volcano_heat)+
+      data=cluster_heat_dt)+
     geom_point(aes(
-      logFC, neg.log10.p),
-      data=pixel_dt,
+      log10.pixels, n.tiles),
       color="black",
-      fill="green",
-      chunk_vars="Cluster",
-      showSelected="Cluster")+
+      fill=cluster.color,
+      showSelected="Cluster",
+      data=count_by_Cluster)+
     geom_tile(aes(
-      round_logFC, round_neg.log10.p),
-      clickSelects="volcano_bin",
+      round.log10.pixels, n.tiles),
       fill="transparent",
-      data=volcano_heat)+
+      color="black",
+      clickSelects="size_bin",
+      data=cluster_heat_dt)+
     scale_fill_gradient(low="white",high="black")+
     theme_bw()+
-    theme_animint(height=300, last_in_row=TRUE),
+    theme_animint(width=300, height=300, last_in_row=TRUE),
   volcanoZoom=ggplot()+
+    ggtitle("Volcano plot zoom")+
     geom_point(aes(
       relative_logFC, relative_neg.log10.p),
       data=pixel_dt,
@@ -372,19 +311,61 @@ viz.common <- animint(
       showSelected="volcano_bin",
       chunk_vars="volcano_bin",
       fill="white",
-      color="green",
+      color=cluster.color,
       color_off="black",
       clickSelects="Cluster")+
     theme_bw()+
-    theme_animint(height=300)
+    theme_animint(width=300, height=300),
+  clusterZoom=ggplot()+
+    ggtitle("Cluster size zoom")+
+    geom_point(aes(
+      rel.log10.pixels, rel_row),
+      size=4,
+      fill="white",
+      color=cluster.color,
+      color_off="black",
+      showSelected="size_bin",
+      clickSelects="Cluster",
+      data=count_by_Cluster)+
+    scale_fill_gradient(low="white",high="black")+
+    theme_bw()+
+    theme_animint(width=300, height=300, last_in_row=TRUE),
+  genomeSummary=ggplot()+
+    ggtitle("Genomic interaction summary")+
+    geom_tile(aes(
+      x, y, fill=mean.logFC),
+      data=region_tiles,
+      color="transparent")+
+    geom_point(aes(
+      round_region_x-off_list$x,
+      round_region_y-off_list$y,
+      group=round_regions),
+      data=local_cluster_presence,
+      color="black",
+      fill=cluster.color,
+      showSelected="Cluster")+
+    geom_tile(aes(
+      x, y),
+      data=region_tiles,
+      clickSelects="round_regions",
+      fill="transparent",
+      color="black")+
+    scale_x_continuous(
+      "Genomic bin")+
+    scale_y_continuous(
+      "Interaction distance")+
+    scale_fill_gradient2()+
+    theme_bw()+
+    theme_animint(width=300, height=300)
 )
-##print(viz.common)
-system("du -ms figure-pixels-chr1-zoom-tiles-clusters/*|sort -n")
-system("du -ms figure-pixels-chr1-zoom-tiles-clusters")
-## 817	figure-pixels-chr1-zoom-tiles-clusters for 20k files.
-## https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github#repository-size-limits says "We recommend repositories remain small, ideally less than 1 GB," so 817MB is OK.
+
+viz.common
+
+du.dt <- fread(paste0(out.dir,".tsv"), col.names=c("du_bytes","name"))
+size.dt <- data.table(name=Sys.glob("figure-pixels-chr1-zoom-tiles-clusters-sizes-new/*tsv"))[, R_bytes := file.size(name)][du.dt, on="name"]
+size.dt[du_bytes != R_bytes]
 
 if(FALSE){
-  animint2pages(viz.common, "2025-10-09-HiC-pixels-chr1-zoom-tiles-clusters", chromote_sleep_seconds=5)
+  animint2pages(viz.common, "2025-12-10-HiC-pixels-chr1-zoom-tiles-clusters-sizes-new", chromote_sleep_seconds=5)
 }
 

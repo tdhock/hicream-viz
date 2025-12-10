@@ -231,7 +231,7 @@ ggplot()+
 
 viz.common <- animint(
   out.dir="figure-pixels-chr1-zoom-tiles-clusters-small",
-  title="Hi-C pixels chr1 clusters zoom using tiles",
+  title="Hi-C pixels chr1 clusters zoom using tiles small",
   source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-09/figure-pixels-chr1-zoom-tiles-clusters-small.R",
   pixelTiles=ggplot()+
     geom_tile(aes(
