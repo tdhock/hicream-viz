@@ -90,6 +90,8 @@ gg <- ggplot()+
     color="black")
 gg
 
+gg+facet_wrap("id")
+
 dcast_input <- rbind(
   DT[, .(
     region1=seq(min(region1), max(region1)),
