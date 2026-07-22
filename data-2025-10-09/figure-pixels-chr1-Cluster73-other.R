@@ -83,7 +83,8 @@ ggplot()+
 local_clust <- show_pixels[, get_boundaries(.SD), by=Cluster]
 
 viz <- animint(
-  title=
+  title="aes(subgroup) works for HiC data",
+  source="https://github.com/tdhock/hicream-viz/blob/main/data-2025-10-09/figure-pixels-chr1-Cluster73-other.R",
   ggplot()+
     geom_polygon(aes(
       region1, region2,
